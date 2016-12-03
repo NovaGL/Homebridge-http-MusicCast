@@ -56,21 +56,11 @@ var pollingtoevent = require('polling-to-event');
 			that.log(that.service, "received power",that.status_url, "state is currently", binaryState); 
 			// switch used to easily add additonal services
 			that.enableSet = false;
-			switch (that.service) {
-				case "Switch":
-					if (that.switchService ) {
-						that.switchService .getCharacteristic(Characteristic.On)
-						.setValue(that.state);
-					}
-					break;
-				case "Light":
-					if (that.lightbulbService) {
+						if (that.lightbulbService) {
 						that.lightbulbService.getCharacteristic(Characteristic.On)
 						.setValue(that.state);
 					}		
-					break;			
-			}
-			that.enableSet = true;   
+								that.enableSet = true;   
 		});
 
 	}
@@ -148,10 +138,10 @@ var pollingtoevent = require('polling-to-event');
 		
 		this.httpRequest(url, body, this.http_method, this.username, this.password, this.sendimmediately, function(error, response, responseBody) {
 			if (error) {
-			this.log('HTTP set power function failed: %s', error.message);
+			this.log('MusicCast set power function failed: %s', error.message);
 			callback(error);
 			} else {
-			this.log('HTTP set power function succeeded!');
+			this.log('MusicCast set power function succeeded!');
 			callback();
 			}
 		}.bind(this));
@@ -173,7 +163,7 @@ var pollingtoevent = require('polling-to-event');
 	
 	this.httpRequest(url, "", "GET", this.username, this.password, this.sendimmediately, function(error, response, responseBody) {
 	if (error) {
-		this.log('HTTP get power function failed: %s', error.message);
+		this.log('MusicCast get power function failed: %s', error.message);
 		callback(error);
 	} else {
 		var a = JSON.parse(responseBody);
@@ -182,8 +172,72 @@ var pollingtoevent = require('polling-to-event');
 		var re = new RegExp(Object.keys(mapObj).join("|"),"gi");
 	        binaryState = parseInt(power.replace(re, function(matched){return mapObj[matched];}));
 		var powerOn = binaryState > 0;
-		this.log("Power state is currently %s", binaryState);
+		this.log("MusicCast Power state is currently %s", binaryState);
 		callback(null, powerOn);
+	}
+	}.bind(this));
+  },
+	setMute: function(muteOn, callback) {
+				
+	if (this.enableSet == true && (this.currentlevel == 0 || !muteOn )) {
+		
+		var url;
+		var body;
+		
+		if (!this.status_url) {
+				this.log.warn("Ignoring request; No mute url defined.");
+				callback(new Error("No MusicCast url defined."));
+				return;
+		}
+		
+		if (muteOn) {
+			var MusicCastMuteOn="/YamahaExtendedControl/v1/main/setMute?enable=true";
+			url = this.status_url + MusicCastMuteOn ;
+			body = this.on_body;
+			this.log("Setting mute state to on");
+		} else {
+			var MusicMuteCastOff="/YamahaExtendedControl/v1/main/setMute?enable=false";
+			url = this.status_url + MusicMuteCastOff;
+			body = this.off_body;
+			this.log("Setting mute state to off");
+		}
+		
+		this.httpRequest(url, body, this.http_method, this.username, this.password, this.sendimmediately, function(error, response, responseBody) {
+			if (error) {
+			this.log('MusicCast set mute function failed: %s', error.message);
+			callback(error);
+			} else {
+			this.log('MusicCast set mute function succeeded!');
+			callback();
+			}
+		}.bind(this));
+	} else {
+	 	callback();
+	}
+	},
+
+  getMute: function(callback) {
+	if (!this.status_url) {
+		this.log.warn("Ignoring request; No status url defined.");
+		callback(new Error("No MusicCast url defined."));
+		return;
+	}
+	
+	var MusicCaststatus = "/YamahaExtendedControl/v1/main/getStatus";
+	var url = this.status_url + MusicCaststatus;
+	this.log("Getting power state");
+	
+	this.httpRequest(url, "", "GET", this.username, this.password, this.sendimmediately, function(error, response, responseBody) {
+	if (error) {
+		this.log('MusicCast get mute function failed: %s', error.message);
+		callback(error);
+	} else {
+		var a = JSON.parse(responseBody);
+		var mute=  a['mute'];
+		var binaryState  = mute ? 1 : 0;
+		var muteOn = binaryState > 0;
+		this.log("MusicCast mute state is currently %s", binaryState);
+		callback(null, muteOn);
 	}
 	}.bind(this));
   },
@@ -196,17 +250,17 @@ var pollingtoevent = require('polling-to-event');
 		}		
 			var MusicCaststatus = "/YamahaExtendedControl/v1/main/getStatus";
 			var url = this.status_url + MusicCaststatus;
-			this.log("Getting Volume level");
+			this.log("Getting MusicCast Volume level");
 	
 			this.httpRequest(url, "", "GET", this.username, this.password, this.sendimmediately, function(error, response, responseBody) {
 			if (error) {
-				this.log('HTTP get Volume function failed: %s', error.message);
+				this.log('MusicCast get Volume function failed: %s', error.message);
 				callback(error);
 			} else {			
 				var a = JSON.parse(responseBody);
 				var binaryState = parseInt(a['volume']);
 				var level = binaryState;
-				this.log("Volume is currently %s", binaryState);
+				this.log("MusicCast Volume is currently %s", binaryState);
 				callback(null, level);
 			}
 			}.bind(this));
@@ -228,10 +282,10 @@ var pollingtoevent = require('polling-to-event');
 	
 		this.httpRequest(url, "", this.http_brightness_method, this.username, this.password, this.sendimmediately, function(error, response, body) {
 		if (error) {
-			this.log('HTTP Volume function failed: %s', error);
+			this.log('MusicCast Volume function failed: %s', error);
 			callback(error);
 		} else {
-			this.log('HTTP Volume function succeeded!');
+			this.log('MusicCast Volume function succeeded!');
 			callback();
 		}
 		}.bind(this));
@@ -256,68 +310,26 @@ var pollingtoevent = require('polling-to-event');
 		informationService
 		.setCharacteristic(Characteristic.Manufacturer, "Yamaha")
 		.setCharacteristic(Characteristic.Model, "MusicCast device")
-		.setCharacteristic(Characteristic.SerialNumber, "HTTP Serial Number");
+		.setCharacteristic(Characteristic.SerialNumber, "MusicCast Serial Number");
 	
-		switch (this.service) {
-		case "Switch": 
-			this.switchService = new Service.Switch(this.name);
-			switch (this.switchHandling) {	
-				//Power Polling			
-				case "yes":					
-					this.switchService
-					.getCharacteristic(Characteristic.On)
-					.on('get', this.getPowerState.bind(this))
-					.on('set', this.setPowerState.bind(this));						
-					break;
-				case "realtime":				
-					this.switchService
-					.getCharacteristic(Characteristic.On)
-					.on('get', function(callback) {callback(null, that.state)})
-					.on('set', this.setPowerState.bind(this));
-					break;
-				default	:	
-					this.switchService
-					.getCharacteristic(Characteristic.On)	
-					.on('set', this.setPowerState.bind(this));					
-					break;}
-					return [this.switchService];
-		case "Light":	
-			this.lightbulbService = new Service.Lightbulb(this.name);			
-			switch (this.switchHandling) {
+			this.lightbulbService  = new Service.Lightbulb(this.name);			
 			//Power Polling
-			case "yes" :
-				this.lightbulbService
+				this.lightbulbService  
 				.getCharacteristic(Characteristic.On)
 				.on('get', this.getPowerState.bind(this))
 				.on('set', this.setPowerState.bind(this));
-				break;
-			case "realtime":
-				this.lightbulbService
-				.getCharacteristic(Characteristic.On)
-				.on('get', function(callback) {callback(null, that.state)})
-				.on('set', this.setPowerState.bind(this));
-				break;
-			default:		
-				this.lightbulbService
-				.getCharacteristic(Characteristic.On)	
-				.on('set', this.setPowerState.bind(this));
-				break;
-			}
-			// Brightness Polling 
-			if (this.brightnessHandling == "realtime") {
-				this.lightbulbService 
-				.addCharacteristic(new Characteristic.Brightness())
-				.on('get', function(callback) {callback(null, that.currentlevel)})
-				.on('set', this.setBrightness.bind(this));
-			} else if (this.brightnessHandling == "yes") {
-				this.lightbulbService
+			// Volume Polling 
+				this.lightbulbService  
 				.addCharacteristic(new Characteristic.Brightness())
 				.on('get', this.getBrightness.bind(this))
-				.on('set', this.setBrightness.bind(this));							
-			}
+				.on('set', this.setBrightness.bind(this));
+			// Mute Polling 
+				this.lightbulbService  
+				.addCharacteristic(new Characteristic.Mute())
+				.on('get', this.getMute.bind(this))
+				.on('set', this.setMute.bind(this));
+
 	
-			return [informationService, this.lightbulbService];
-			break;		
-		}
+			return [informationService, this.lightbulbService];		
 	}
 };
